@@ -50,15 +50,27 @@ GLPI_URL=$(curl -s https://api.github.com/repos/glpi-project/glpi/releases/lates
   | grep browser_download_url | grep ".tgz" | head -n1 | cut -d '"' -f4)
 wget -O /tmp/glpi_latest.tgz "$GLPI_URL"
 
-# 5) Modo Manutenção e Atualização de Binários
-echo "Ativando modo de manutenção e extraindo arquivos..."
+# 5) Substituição Limpa (Core)
+echo "Limpando core antigo e instalando binários novos..."
 sudo -u "$WEB_USER" php "$GLPI_DIR/bin/console" glpi:maintenance:enable || true
 
-mkdir -p /tmp/glpi_new
-tar -xzf /tmp/glpi_latest.tgz -C /tmp/glpi_new
-# Sincroniza o core excluindo pastas de dados que já fizemos backup
-rsync -avz /tmp/glpi_new/glpi/ "$GLPI_DIR/" --exclude='config' --exclude='files' --exclude='marketplace'
+# Move o GLPI atual para uma pasta temporária (backup rápido)
+mv "$GLPI_DIR" "${GLPI_DIR}_old_bin"
 
+# Cria a pasta nova e extrai o GLPI novo nela
+mkdir -p "$GLPI_DIR"
+tar -xzf /tmp/glpi_latest.tgz -C /tmp/ --strip-components=1 # Extrai direto para a pasta glpi do tgz
+# Nota: Se o seu tar extrai para uma subpasta 'glpi', ajuste o comando abaixo:
+mv /tmp/glpi/* "$GLPI_DIR/" 2>/dev/null || mv /tmp/glpi-*/* "$GLPI_DIR/" 2>/dev/null
+
+# Volta as pastas essenciais do backup para a instalação nova
+echo "Restaurando pastas de dados (config, files, marketplace)..."
+cp -rp "${GLPI_DIR}_old_bin/config" "$GLPI_DIR/"
+cp -rp "${GLPI_DIR}_old_bin/files" "$GLPI_DIR/"
+cp -rp "${GLPI_DIR}_old_bin/marketplace" "$GLPI_DIR/" 2>/dev/null || mkdir -p "$GLPI_DIR/marketplace"
+
+# Remove a pasta antiga (binários velhos) para não ocupar espaço
+rm -rf "${GLPI_DIR}_old_bin"
 # 6) Garantir .htaccess e Permissões
 echo "Ajustando permissões e fix do .htaccess..."
 chown -R "${WEB_USER}:${WEB_USER}" "$GLPI_DIR"
