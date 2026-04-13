@@ -2,12 +2,11 @@
 set -uo pipefail
 IFS=$'\n\t'
 
-# update_glpi.sh - Performance & Security Edition
 LOG="/var/log/glpi_update.log"
 exec > >(tee -a "$LOG") 2>&1
 
 echo "=============================================="
-echo "  GLPI Update - Segurança e Performance"
+echo "  Atualização GLPI Automatica"
 echo "=============================================="
 
 if [ "$EUID" -ne 0 ]; then
@@ -21,7 +20,7 @@ BACKUP_DIR="/root/glpi_backup_$(date +%Y%m%d_%H%M%S)"
 
 [ -f /etc/debian_version ] && WEB_USER="www-data" || WEB_USER="apache"
 
-# 1) EXTRAÇÃO EM MEMÓRIA (Sem arquivos temporários)
+# 1) EXTRAÇÃO EM MEMÓRIA
 echo "Extraindo credenciais do core..."
 if [ ! -f "$CONFIG_PHP" ]; then
     echo "ERRO: Configuração do GLPI não encontrada." >&2
@@ -38,7 +37,7 @@ if [[ -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASS" ]]; then
     exit 1
 fi
 
-# 2) BACKUP INTEGRAL (Banco + Plugins)
+# 2) BACKUP INTEGRAL
 echo "Gerando backup de segurança..."
 mkdir -p "$BACKUP_DIR"
 mysqldump -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" > "$BACKUP_DIR/glpi_db.sql"
@@ -65,7 +64,7 @@ cp -rp "${GLPI_DIR}_old/files" "$GLPI_DIR/"
 cp -rp "${GLPI_DIR}_old/marketplace" "$GLPI_DIR/" 2>/dev/null || mkdir -p "$GLPI_DIR/marketplace"
 cp -rp "${GLPI_DIR}_old/plugins" "$GLPI_DIR/" 2>/dev/null || mkdir -p "$GLPI_DIR/plugins"
 
-# 4) PERMISSÕES E FIX ORACLE CLOUD
+# 4) PERMISSÕES E FIX
 chown -R "${WEB_USER}:${WEB_USER}" "$GLPI_DIR"
 cat > "${GLPI_DIR}/public/.htaccess" <<HTACCESS
 <IfModule mod_rewrite.c>
@@ -88,5 +87,4 @@ rm -rf "${GLPI_DIR}_old" /tmp/glpi /tmp/glpi_latest.tgz
 
 echo "=============================================="
 echo "  SISTEMA ATUALIZADO COM SUCESSO"
-echo "  Sua senha foi preservada e os plugins mantidos."
 echo "=============================================="
